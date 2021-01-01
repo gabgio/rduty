@@ -1,0 +1,282 @@
+#!/usr/bin/python3
+try:
+    import argparse
+except:
+    raise Exception("Missing argparse!")
+try:
+    import getpass
+except:
+    raise Exception("Missing getpass!")
+try:
+    import paramiko
+except:
+    raise Exception("Missing paramiko!")
+
+
+
+import sys
+from socket import error
+
+PACKAGE="rduty"
+VERSION="0.1"
+RELEASE_DATE="20040702"
+AUTHOR="Gabriele Giorgetti"
+EMAIL="<g.giorgetti@gmail.com>"
+URL="http://cpuspeedy.sourceforge.net"
+
+# exit values
+EXIT_SUCCESS=0
+EXIT_FAILURE=1
+
+# supported protocols
+PROTOCOL_SSH="ssh"
+PROTOCOL_TELNET="telnet"
+
+# Options
+
+OPT_SHORT={
+    'VERSION':'-v',
+    'HELP':'-h',
+    'HOSTS':'-H',
+    'COMMAND':'-C',
+    'SCRIPT':'-S',
+    'USERNAME':'-U',
+    'PASSWORD':'-P',
+    'PROTOCOL':'-p',
+    'DRYRUN':'-d',
+}
+OPT_LONG={
+    'VERSION':'--version',
+    'HELP':'--help',
+    'HOSTS':'--hosts',
+    'COMMAND':'--command',
+    'SCRIPT':'--script',
+    'USERNAME':'--username',
+    'PASSWORD':'--password',
+    'PROTOCOL':'--protocol',
+    'DRYRUN':'--dry-run',
+}
+
+# elimina i warning deprecated
+import warnings
+warnings.filterwarnings(action='ignore',module='.*paramiko.*')
+
+class User:
+    def __init__(self,username=None,password=None):
+        self.username=username
+        self.password=password
+
+    def Ask(self):
+        self.username=input("Username: ")
+        self.password=getpass.getpass()
+
+
+class Connection:
+    
+    def __init__ (self,protocol):
+        self.hostname=""
+        self.port=22
+
+        self.username=""
+        self.password=""
+        
+        self.connection=None
+        self.connected=False
+        self.protocol=None
+
+    def SetType (self, protocol=PROTOCOL_SSH):
+
+        if self.protocol is PROTOCOL_SSH:
+            self.connection=paramiko.client.SSHClient()
+            self.connection.load_system_host_keys()
+            self.connection.set_missing_host_key_policy(paramiko.client.AutoAddPolicy())
+
+        if self.type is PROTOCOL_TELNET:
+            pass
+
+
+    def Connect (self,type=None, hostname=None, port=None, username=None,password=None):
+
+        if type !=None:
+            self.type=type
+
+        if self.type is PROTOCOL_SSH:
+            self.ConnectSSH(hostname,port, username, password)
+
+        elif self.type is PROTOCOL_TELNET:
+            self.ConnectTELNET(hostname,port, username, password)
+
+
+    def ConnectSSH (self, hostname=None,port=None,username=None,password=None):
+
+        self.hostname=hostname
+        self.port=port
+        self.username=username
+        self.password=password
+
+        try:
+            self.client.connect(self.hostname, self.port,self.username,self.password)
+        except paramiko.BadHostKeyException:
+            print ( "cannot verify host key")
+            return
+        except paramiko.AuthenticationException:
+            print ( "bad username or password")
+            return
+        except paramiko.SSHException:
+            print ( "general SSH error")
+            return
+        except socket.error:
+            print ( "socket error")
+            return
+
+        self.connected=True
+
+
+    def ConnectTELNET (self, hostname,port=21,username=None,password=None):
+        self.hostname=hostname
+        self.port=port
+        self.username=username
+        self.password=password
+
+        try:
+            self.connection = telnetlib.Telnet(self.hostname)
+        except:
+            print ("Cannot connect via telnet to " +self.hostname)
+            return
+
+        t.read_until(b"Username:")
+        t.write(self.username.encode("ascii") + b"\n")
+        if password:
+            t.read_until(b"Password:")
+            t.write(self.password.encode("ascii") + b"\n")
+
+        self.connected=True
+
+    def Exec (self, command):
+        if not self.connected:
+            return
+
+        if type is PROTOCOL_SSH:
+            try:
+                stdin , stdout, stderr = self.client.exec_command(command)
+            except paramiko.SSHException:
+                print ( "general SSH error")
+            result = stdout.read().decode('ascii').strip("\n")
+            print (result)
+            
+        elif type is PROTOCOL_TELNET:
+            self.connection.write(self.command+"\n")
+            #tn.write("exit\n")
+            result=connection.read_all()
+            print (esult)
+
+
+    def Close(self):
+        if not self.connected:
+            return
+
+        try:
+            self.client.close()
+        except:
+            pass
+
+
+def show_version():
+    sys.stdout.write ("%s %s (%s) (%s)\n" %(PACKAGE,VERSION,RELEASE_DATE,URL))
+    sys.stdout.write ("\n")
+    sys.stdout.write ("Written by %s %s\n" %(AUTHOR,EMAIL))
+    
+def show_help():
+    sys.stdout.write ("%s version %s Usage: %s [SPEED VALUE] or [OPTION]\n" %(PACKAGE,VERSION,PACKAGE))
+    sys.stdout.write ("\n")
+    sys.stdout.write ("Example: %s 1.07 Ghz\n" %(PACKAGE))
+    sys.stdout.write ("Example: %s 800 Mhz\n" %(PACKAGE))
+    sys.stdout.write ("Example: %s low\n" %(PACKAGE))
+    sys.stdout.write ("\n")
+    sys.stdout.write ("Speed values:\n")
+    sys.stdout.write ("      [numeric value] [unit] (unit must be: Khz,MHz or Ghz)\n" )
+    sys.stdout.write ("      a ,b\n")
+
+    sys.stdout.write ("\n")
+    sys.stdout.write ("Options:\n")
+    sys.stdout.write ("      %s, %s              display this help and exit\n" %(OPT_HELP[0],OPT_HELP[1]))
+    sys.stdout.write ("      %s, %s           output version information and exit\n" %(OPT_VERSION[0],OPT_VERSION[1]))
+    sys.stdout.write ("\n")    
+    sys.stdout.write ("Report bugs to %s.\n" %(EMAIL))
+    
+
+
+def main():
+    """ """
+
+    DRYRUN=False
+
+    argparser = argparse.ArgumentParser(prog="rduty", add_help=False)
+
+    # this command are mutually exclusive for command or script file, and at least one must be specified
+    exclusive_actions_group = argparser.add_mutually_exclusive_group(required=True)
+    exclusive_actions_group.add_argument("-C","--command", help="command to execute remotely should quoted")
+    exclusive_actions_group.add_argument("-S","--script", help="path to the script to execute")
+
+    # this command are mutually exclusive for host list or inventory file, and at least one must be specified
+    exclusive_inventory_group = argparser.add_mutually_exclusive_group(required=True)
+    exclusive_inventory_group.add_argument("-H","--hosts", help="host or comma separated list of hosts")
+    exclusive_inventory_group.add_argument("-I","--inventory", help="path to inventory file")
+
+    # if specified dryrun is set to true
+    argparser.add_argument("-d","--dryrun", help="only shows what will be done", action="store_true")
+
+    # list of optional commands
+    argparser.add_argument("-U","--username", help="username")
+    argparser.add_argument("-P","--password", help="password")
+    argparser.add_argument("-p","--protocol", help="protocol to use valid values are ssh (default)or telnet")
+
+    argparser.add_argument("-v","--version", help="output version information and exit")
+    argparser.add_argument("-h","--help", help="display this help and exit")
+
+    # parse args
+    args=argparser.parse_args()
+
+    try:
+        import signal
+        # traps the sigint signal
+        signal.signal(signal.SIGINT, signal_handler)
+    except:
+        pass
+
+    if args.dryrun:
+        DRYRUN=True
+
+    # process args
+    HOSTS=args.hosts.split(",")
+
+    if args.command != None:
+
+        if args.hosts != None:
+            pass
+
+        elif args.inventory != None:
+            pass
+
+    elif args.script != None:
+        pass
+
+    global HOSTS
+    for host in arg_hosts:
+        if string.find(host,',') > -1:
+            HOSTS.extend(string.split(host,','))
+        else:
+            HOSTS.append(host)
+
+"""
+    connection = Connection()
+    connection.Connect("192.168.0.3",22, username,password)
+    connection.Exec("uname -a")
+    connection.Close()
+"""
+
+if __name__ == "__main__":
+    main()
+    sys.exit(EXIT_SUCCESS)
+
+
