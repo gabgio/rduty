@@ -425,8 +425,47 @@ def main():
             _appout (host,"Connection closed.",MODE_DRYRUN,MODE_QUIET)
             counter=counter+1
 
+
     elif args.script != None:
         pass
+
+"""
+        if not os.path.isfile(args.script):
+            _exiterror ("Error, cannot find script file '" + args.script +"'\nAborting.\n")
+
+        for host in hosts.hosts:
+            _pause()
+            _txtout("")
+            if MODE_QUIET:
+                _txtout(str(counter)+ ". ["+str(host)+":"+str(connection.port)+"] executing script: "+args.script)
+            else:
+                _txtout(str(counter)+ ". ["+str(host)+":"+str(connection.port)+"]")
+                _appout (host,"Connect",MODE_DRYRUN, MODE_QUIET)
+
+            connection.Connect(hostname=host, username=user.username,password=user.password)
+            if not connection.connected:
+                if MODE_DEBUG:
+                    _debugout ("Can't connect. " + str(connection.error))
+                else:
+                    _appout (host,"Can't connect!",MODE_DRYRUN,False)
+                
+                counter=counter+1
+                continue
+
+            _appout (host,"Executing script: " + args.script,MODE_DRYRUN, MODE_QUIET)
+            if connection.ExecScript(args.script):
+                output = connection.Output()
+                if output != "" and output != None:
+                    _appout (host,"Getting output: ",MODE_DRYRUN,MODE_QUIET)
+                    _txtout (OUTPUT_SEPARATOR1, MODE_QUIET)
+                    _txtout (output)
+                    _txtout (OUTPUT_SEPARATOR1 ,MODE_QUIET)
+
+            connection.Close()
+            _appout (host,"Connection closed.",MODE_DRYRUN,MODE_QUIET)
+            counter=counter+1
+"""
+
 
 if __name__ == "__main__":
     main()
