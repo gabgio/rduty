@@ -1,0 +1,86 @@
+.\" rduty man page
+.\" Process this file with: groff -man -Tascii
+.\" man page originally written by  Gabriele Giorgetti <g.giorgetti@amail.com>
+.TH CPUSPEEDY 1 "Jan 2, 2020"
+.SH NAME
+rduty \- A simple and easy to use program to control the speed and the 
+voltage of CPUs on the fly.
+.SH SYNOPSIS
+.B \fBrduty\fR
+[\fISPEED VALUE\fR] or
+[\fIOPTION\fR]
+.SH DESCRIPTION
+.B cpuspeedy
+is a script written in Python which allows you to change the clock speed and 
+voltage of the CPUs. It can use the Linux kernel sysfs interface (v2.5/v2.6), 
+the CPUFreq 24 API (/proc/sys/cpu..., v2.4), or the CPUFREQ_PROC 
+(/proc/cpufreq). All you need is a supported CPU and a kernel which has support 
+for one of the interfeces listed above. cpuspeedy is just a user space program, 
+so it will work on every processor supported by the kernel's CPUFreq driver. 
+Use it and you should save battery consumption and reduce the temperature of 
+your laptop.
+.SH SPEED VALUES
+.TP
+\fB[numeric value]\fr \fB[unit]\fR (unit must be: Khz,MHz or Ghz)
+.TP
+\fBmin\fr, \fBminimum\fR
+.TP
+\fBlow\fr, \fBslow\fR
+.TP
+\fBmed\fr, \fBmedium\fR
+.TP
+\fBhigh\fr, \fBfast\fR
+.TP
+\fBmax\fr, \fBmaximum\fR
+.SH OPTIONS
+.TP
+\fB\-s\fr, \fB\-\-status\fR
+print infos about the CPU speed and temperature
+.TP
+\fB\-f\fr, \fB\-\-freqs\fR
+print a list of available frequencies (2.6.X only).
+.TP
+\fB\-d\fr, \fB\-\-dump\fR
+dump infos about available interface if any
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+display this help and exit
+.TP
+\fB\-v\fR, \fB\-\-version\fR
+output version information and exit
+.SH EXAMPLES
+.LP
+To have a list of available frequencies (Kernel 2.6.x only):
+.LP
+cpuspeedy --freqs
+.LP
+To set the cpu speed to a specifc frequency value in MHz:
+.LP
+cpuspeedy 800 Mhz
+.LP
+To set the cpu speed to a specifc frequency value in GHz:
+.LP
+cpuspeedy 1.0 Ghz
+.LP
+To set the cpu speed to a minimum value:
+.LP
+cpuspeedy minimum
+.LP
+To have infos about the CPU speed and the temperature:
+.LP
+cpuspeedy --status
+.LP
+.LP
+.SH AVAILABILTY   
+The latest version of this program can be found at
+http://cpuspeedy.sourceforge.net
+.SH BUGS
+See the BUGS file in the cpuspeedy source package for a list of known bugs.
+Report bugs to <gabriele_giorgetti@tin.it>
+.SH AUTHOR
+cpuspeedy is written by Gabriele Giorgetti <gabriele_giorgetti@tin.it>
+.SH COPYRIGHT
+Copyright \(co 2004 Gabriele Giorgetti
+.br
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

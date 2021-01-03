@@ -1,0 +1,8 @@
+2020-01-03 Gabriele Giorgetti <g.giorgetti@gmail.com>
+
+    * Version 0.2.1 released. Added inventory (ini config) file parsing.
+    Debuggin, dryrun, and quiet mode added.
+
+2020-01-02 Gabriele Giorgetti <g.giorgetti@gmail.com>
+
+    * Version 0.1.0 released. Initial release.

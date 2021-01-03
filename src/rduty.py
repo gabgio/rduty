@@ -8,18 +8,23 @@ try:
 except:
     raise Exception("Missing getpass!")
 try:
+    import configparser
+except:
+    raise Exception("Missing configparser!")
+try:
     import paramiko
 except:
     raise Exception("Missing paramiko!")
 
-
-
+import os
 import sys
-from socket import error
+import time
+import ipaddress
+import socket
 
 PACKAGE="rduty"
-VERSION="0.1"
-RELEASE_DATE="20200101"
+VERSION="0.2.1"
+RELEASE_DATE="20200103"
 AUTHOR="Gabriele Giorgetti"
 EMAIL="<g.giorgetti@gmail.com>"
 URL="https://github.com/gabgio/rduty"
@@ -27,6 +32,10 @@ URL="https://github.com/gabgio/rduty"
 # exit values
 EXIT_SUCCESS=0
 EXIT_FAILURE=1
+
+MODE_DRYRUN=False
+MODE_QUIET=False
+MODE_DEBUG=False
 
 # supported protocols
 PROTOCOL_SSH="ssh"
@@ -36,14 +45,43 @@ PROTOCOL_TELNET="telnet"
 PORT_SSH=22
 PORT_TELNET=21
 
+OUTPUT_SEPARATOR1="-----------------------------------------------------------------------------------------------------------------------"
+OUTPUT_SEPARATOR2="#######################################################################################################################"
+#OUTPUT_SEPARATOR='""""'
+#OUTPUT_SEPARATOR=''
+
 # elimina i warning deprecated
 import warnings
 warnings.filterwarnings(action='ignore',module='.*paramiko.*')
 
 
-def _msgout(msg=""):
+def _debugout(msg=""):
+    global MODE_DEBUG
     if msg != "":
-        sys.stdout.write(msg)
+            if MODE_DEBUG:
+                sys.stdout.write(PACKAGE + "(debug): " + msg+"\n")
+
+def _txtout(msg="",quiet=False):
+    if not quiet:
+        sys.stdout.write(msg+"\n")
+
+def _appout(host="", msg="",dryrun=False,quiet=False):
+    str_dryrun=""
+    if msg != "":
+        if dryrun:
+            str_dryrun=" (DRYRUN MODE)"
+        if not quiet:
+            sys.stdout.write(str(host)+str_dryrun+" -> "+msg +"\n")
+
+def _exiterror(msg="",errno=1):
+    _debugout ("_exiterror: errno " + str(errno))
+    if msg != "":
+        sys.stdout.write(PACKAGE + ": " + msg)
+    sys.exit(errno)
+
+
+def _pause(seconds=1):
+    time.sleep(seconds)
 
 class User:
     def __init__(self):
@@ -74,22 +112,49 @@ class User:
         if ask_password:
             self.password=getpass.getpass()
 
-
 class Hosts:
     def __init__(self):
         self.hosts=[]
+
+    def Validate(self,host):
+        if host != None:
+            try:
+                ipaddress.ip_address(host)
+            except:
+                # passed host is not an ip address, let's consider it a "hostname"
+                if len(str(host)) > 1:
+                    return True
+
+            return False
 
     def AddFromArgs(self, args):
         # process args
         self.hosts=args.split(",")
 
-""" global HOSTS
-    for host in arg_hosts:
-        if string.find(host,',') > -1:
-            HOSTS.extend(string.split(host,','))
-        else:
-            HOSTS.append(host) """
+    def AddFromInventory(self, path=None, section="all_sections"):
+        _debugout ("AddFromInventory: " + path + " " +section)
+        # process ansible like (ini) inventory file
+        inventory=configparser.ConfigParser(allow_no_value=True) # inventory file don't have a key value, just key for hostname/ip
+        inventory.sections()
+        
+        if not os.path.isfile(path):
+            _exiterror ("Error, cannot find inventory file '" + path+"'\nAborting.\n")
 
+        try:
+            inventory.read(path)
+        except:
+            _exiterror ("Error, cannot read inventory file '" + path+"'\nAborting.\n")
+        
+        # read all the hosts in all of the sections in the ini file
+        secs=inventory.sections()
+        for sec in secs:
+            for key in inventory[sec]:
+                if section == "all_sections":
+                    self.hosts.append(str(key))
+                else:
+                    # add host only in in passed section name:
+                    if section.lower() == sec.lower():
+                        self.hosts.append(str(key))
 
 class Connection:
     
@@ -105,9 +170,10 @@ class Connection:
         self.connection=None
         self.connected=False
 
-        self.outoput=None
-        self.error=None
+        self.outoput=""
+        self.error=""
 
+        _debugout ("Connection (__init__):" + self.protocol)
         if self.protocol is PROTOCOL_SSH:
             self.connection=paramiko.client.SSHClient()
             self.connection.load_system_host_keys()
@@ -125,6 +191,11 @@ class Connection:
         self.hostname=hostname
         self.username=username
         self.password=password
+
+        # clears output message and errors
+        self.outoput=""
+        self.error=""
+        self.connected=False
 
         if self.protocol is PROTOCOL_SSH:
             if port == None:
@@ -150,24 +221,32 @@ class Connection:
         self.username=username
         self.password=password
 
+        # clears output message and errors
+        self.outoput=""
+        self.error=""
+        self.connected=False
+
+        _debugout ("ConnectSSH:" + self.hostname +" " +str(self.port)+" "+self.username)
         try:
             self.connection.connect(self.hostname, self.port,self.username,self.password)
+        except socket.gaierror:
+            self.error="Error (Connect), cannot resolve '" + self.hostname + "' !"
+            return False
         except paramiko.BadHostKeyException:
             self.error="Error (Connect), bad host key exception!"
             return False
-
         except paramiko.AuthenticationException:
             self.error="Error (Connect), bad username or password!"
             return False
         except paramiko.SSHException:
             self.error="Error (Connect), general ssh exception!"
             return False
-
         except socket.error:
             self.error="Error (Connect), general socket error!"
             return False
 
         self.connected=True
+        _debugout ("ConnectSSH: connected")
         return True
 
 
@@ -177,6 +256,12 @@ class Connection:
         self.username=username
         self.password=password
 
+        # clears output message and errors
+        self.outoput=""
+        self.error=""
+        self.connected=False
+
+        _debugout ("ConnectTELNET:" + self.hostname +" " +str(self.port)+" "+self.username)
         try:
             self.connection = telnetlib.Telnet(self.hostname)
         except:
@@ -194,8 +279,13 @@ class Connection:
 
     def Exec (self, command):
         self.command=command
+
         if not self.connected:
             return 
+
+        # clears output message and errors
+        self.outoput=""
+        self.error=""
 
         if self.protocol is PROTOCOL_SSH:
             try:
@@ -221,7 +311,6 @@ class Connection:
     def Error (self):
         return str(self.error)
 
-
     def Close(self):
         if not self.connected:
             return
@@ -240,6 +329,7 @@ def show_version():
 
 def main():
     """ """
+    global MODE_DRYRUN, MODE_QUIET, MODE_DEBUG
 
     argparser = argparse.ArgumentParser(prog="rduty", add_help=True)
 
@@ -257,12 +347,15 @@ def main():
     argparser.add_argument("-U","--username", help="username")
     argparser.add_argument("-P","--password", help="password")
     argparser.add_argument("-p","--protocol", choices=['ssh', 'telnet'], default=PROTOCOL_SSH, help="protocol to use valid values are ssh (default)or telnet")
+    # if specified quiet is set to true
+    argparser.add_argument("-q","--quiet", help="shows only essential output", action="store_true")
     # if specified dryrun is set to true
     argparser.add_argument("-d","--dryrun", help="only shows what will be done", action="store_true")
+    # if specified debug is set to true
+    argparser.add_argument("-D","--debug", action="store_true", help=argparse.SUPPRESS) # not shown in normal help
 
     argparser.add_argument("-v","--version", action='version',  help="output version information and exit", version=str('%(prog)s ' + VERSION + "("+RELEASE_DATE+")"))
     #argparser.add_argument("-h","--help", help="display this help and exit")
-
 
     # parse args
     args=argparser.parse_args()
@@ -274,7 +367,14 @@ def main():
     except:
         pass
 
-    DRYRUN=False
+    if args.dryrun:
+        MODE_DRYRUN=True
+
+    if args.quiet:
+        MODE_QUIET=True
+
+    if args.debug:
+        MODE_DEBUG=True
 
     # set username and password
     user=User()
@@ -286,30 +386,44 @@ def main():
         hosts.AddFromArgs(args.hosts)
 
     elif args.inventory != None:
-        #read host list from inventory
-        pass
+        hosts=Hosts()
+        hosts.AddFromInventory(path=args.inventory)
 
     connection=Connection(args.protocol)
 
+    counter=1
     if args.command != None:
         for host in hosts.hosts:
-            _msgout ("-> " + str(host) + " connection with username: '" + user.username+"'")
+            _pause()
+            _txtout("")
+            if MODE_QUIET:
+                _txtout(str(counter)+ ". ["+str(host)+":"+str(connection.port)+"] executing command: "+args.command)
+            else:
+                _txtout(str(counter)+ ". ["+str(host)+":"+str(connection.port)+"]")
+                _appout (host,"Connect",MODE_DRYRUN, MODE_QUIET)
+
             connection.Connect(hostname=host, username=user.username,password=user.password)
             if not connection.connected:
-                _msgout (" can't connect!\n")
+                if MODE_DEBUG:
+                    _debugout ("Can't connect. " + str(connection.error))
+                else:
+                    _appout (host,"Can't connect!",MODE_DRYRUN,False)
+                
+                counter=counter+1
                 continue
 
-            _msgout (" ok!\n")
-            _msgout ("-> " + str(host) + " exec command: '" + args.command +"'\n")
+            _appout (host,"Executing command: " + args.command,MODE_DRYRUN, MODE_QUIET)
             if connection.Exec(args.command):
-                if connection.Output() != "" and connection.Output() != None:
-                    _msgout ("-> " + str(host) + " output:\n")
-                    _msgout ("-----------------------------------------------------------------------------------------------------------------------\n")
-                    _msgout (connection.Output() + "\n")
-                    _msgout ("-----------------------------------------------------------------------------------------------------------------------\n")
-            connection.Close()
-            _msgout ("-> " + str(host) + " connection closed.\n")
+                output = connection.Output()
+                if output != "" and output != None:
+                    _appout (host,"Getting output: ",MODE_DRYRUN,MODE_QUIET)
+                    _txtout (OUTPUT_SEPARATOR1, MODE_QUIET)
+                    _txtout (output)
+                    _txtout (OUTPUT_SEPARATOR1 ,MODE_QUIET)
 
+            connection.Close()
+            _appout (host,"Connection closed.",MODE_DRYRUN,MODE_QUIET)
+            counter=counter+1
 
     elif args.script != None:
         pass
