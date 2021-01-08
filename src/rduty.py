@@ -23,8 +23,8 @@ import ipaddress
 import socket
 
 PACKAGE="rduty"
-VERSION="0.2.1"
-RELEASE_DATE="20200103"
+VERSION="0.3.1"
+RELEASE_DATE="20200108"
 AUTHOR="Gabriele Giorgetti"
 EMAIL="<g.giorgetti@gmail.com>"
 URL="https://github.com/gabgio/rduty"
@@ -32,6 +32,9 @@ URL="https://github.com/gabgio/rduty"
 # exit values
 EXIT_SUCCESS=0
 EXIT_FAILURE=1
+
+# max size for script #1MB
+SCRIPT_MAXSIZE=1048576 
 
 MODE_DRYRUN=False
 MODE_QUIET=False
@@ -133,7 +136,7 @@ class Hosts:
 
     def AddFromInventory(self, path=None, section="all_sections"):
         _debugout ("AddFromInventory: " + path + " " +section)
-        # process ansible like (ini) inventory file
+        # process (ini) inventory file
         inventory=configparser.ConfigParser(allow_no_value=True) # inventory file don't have a key value, just key for hostname/ip
         inventory.sections()
         
@@ -155,6 +158,54 @@ class Hosts:
                     # add host only in in passed section name:
                     if section.lower() == sec.lower():
                         self.hosts.append(str(key))
+
+    def AddFromInventoryAnsible(self, path=None, section="all_sections"):
+        _debugout ("AddFromInventoryAnsible: " + path + " " +section)
+        # process ansible like (ini) inventory file
+        inventory=configparser.ConfigParser(allow_no_value=True) # inventory file don't have a key value, just key for hostname/ip
+        inventory.sections()
+        
+        if not os.path.isfile(path):
+            _exiterror ("Error, cannot find inventory file '" + path+"'\nAborting.\n")
+
+        try:
+            inventory.read(path)
+        except:
+            _exiterror ("Error, cannot read inventory file '" + path+"'\nAborting.\n")
+        
+        # read all the hosts in all of the sections in the ini file
+        secs=inventory.sections()
+        for sec in secs:
+            # skip sections like [name:var]
+            if sec.find(":") != -1:
+                continue
+            # skip commented sections
+            if sec.find("#") == 0:
+                continue
+
+            for key in inventory[sec]:
+                newstr=str(key)
+                finalstr=""
+
+                # skip commented
+                if newstr.find("#") == 0:
+                    continue
+
+                # if there are spaces it splits the string
+                # to consider only the first element
+                if newstr.find(" ") != -1:
+                    finalstr=newstr.split(" ")[0]
+                else:
+                    finalstr=newstr
+                
+                if section == "all_sections":
+                    self.hosts.append(finalstr)
+
+                else:
+                    # add host only in in passed section name:
+                    if section.lower() == sec.lower():
+                        self.hosts.append(finalstr)
+
 
 class Connection:
     
@@ -278,6 +329,7 @@ class Connection:
         return True
 
     def Exec (self, command):
+        _debugout ("Exec: " + command)
         self.command=command
 
         if not self.connected:
@@ -303,6 +355,59 @@ class Connection:
             return True
 
         return False
+
+
+    def ExecScript (self, path):
+        _debugout ("ExecScript: " + path)
+        self.script=path
+
+        if not self.connected:
+            return
+
+        fsize=os.path.getsize(self.script)
+        if (fsize > SCRIPT_MAXSIZE):
+            self.error="Error, (ExecScript), file bigger than " + SCRIPT_MAXSIZE
+            return False
+
+        try:
+            f = open(self.script, "r")
+        except:
+            self.error="Error (ExecScript) cannot read " + self.script
+            return False
+
+        flines=f.readlines()
+        f.close()
+
+        # clears output message and errors
+        self.outoput=""
+        self.error=""
+
+        for line in flines:
+            #skip empty lines
+            if (line == "") or (line == None):
+                continue
+            # skip comments
+            if line[0] == "#":
+                continue
+
+            _debugout ("command: " + line)
+
+            if self.protocol is PROTOCOL_SSH:
+                try:
+                    stdin , stdout, stderr = self.connection.exec_command(line)
+                except paramiko.SSHException:
+                    self.error="Error (ExecScript), general ssh exception!"
+                    return False
+                self.output = stdout.read().decode('ascii').strip("\n")
+                _txtout (self.output)
+            
+            elif self.protocol is PROTOCOL_TELNET:
+                self.connection.write(self.command+"\n")
+                #tn.write("exit\n")
+                self.output=connection.read_all()
+                _txtout (self.output)
+
+        return True
 
 
     def Output (self):
@@ -331,7 +436,7 @@ def main():
     """ """
     global MODE_DRYRUN, MODE_QUIET, MODE_DEBUG
 
-    argparser = argparse.ArgumentParser(prog="rduty", add_help=True)
+    argparser = argparse.ArgumentParser(prog=PACKAGE, add_help=True, usage='%(prog)s [options] BLAHBLHA OVerride thedefault')
 
     # this command are mutually exclusive for command or script file, and at least one must be specified
     exclusive_actions_group = argparser.add_mutually_exclusive_group(required=True)
@@ -354,7 +459,7 @@ def main():
     # if specified debug is set to true
     argparser.add_argument("-D","--debug", action="store_true", help=argparse.SUPPRESS) # not shown in normal help
 
-    argparser.add_argument("-v","--version", action='version',  help="output version information and exit", version=str('%(prog)s ' + VERSION + "("+RELEASE_DATE+")"))
+    argparser.add_argument("-v","--version", action='version',  help="output version information and exit", version=str('%(prog)s ' + VERSION + " ("+RELEASE_DATE+")"))
     #argparser.add_argument("-h","--help", help="display this help and exit")
 
     # parse args
@@ -387,7 +492,7 @@ def main():
 
     elif args.inventory != None:
         hosts=Hosts()
-        hosts.AddFromInventory(path=args.inventory)
+        hosts.AddFromInventoryAnsible(path=args.inventory)
 
     connection=Connection(args.protocol)
 
@@ -427,9 +532,6 @@ def main():
 
 
     elif args.script != None:
-        pass
-
-"""
         if not os.path.isfile(args.script):
             _exiterror ("Error, cannot find script file '" + args.script +"'\nAborting.\n")
 
@@ -453,18 +555,14 @@ def main():
                 continue
 
             _appout (host,"Executing script: " + args.script,MODE_DRYRUN, MODE_QUIET)
-            if connection.ExecScript(args.script):
-                output = connection.Output()
-                if output != "" and output != None:
-                    _appout (host,"Getting output: ",MODE_DRYRUN,MODE_QUIET)
-                    _txtout (OUTPUT_SEPARATOR1, MODE_QUIET)
-                    _txtout (output)
-                    _txtout (OUTPUT_SEPARATOR1 ,MODE_QUIET)
-
+            _appout (host,"Getting output: ",MODE_DRYRUN,MODE_QUIET)
+            _txtout (OUTPUT_SEPARATOR1, MODE_QUIET)
+            if not connection.ExecScript(args.script):
+                _exiterror ("Error, '" + connection.error + "'")
+            _txtout (OUTPUT_SEPARATOR1 ,MODE_QUIET)
             connection.Close()
             _appout (host,"Connection closed.",MODE_DRYRUN,MODE_QUIET)
             counter=counter+1
-"""
 
 
 if __name__ == "__main__":
