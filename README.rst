@@ -39,16 +39,21 @@ Usage
 
 **Usage:** `rduty [HOST or INVENTORY] [COMMAND or SCRIPT] ...`
 
+.. code-block:: sh
 
+  $ rduty -H 192.168.0.10 -C "ls" 
+  
+.. code-block:: sh
 
-Command line
-~~~~~~~~~~~~
-
-**Usage:** `rduty [HOST or INVENTORY] [COMMAND or SCRIPT] ...`
+  $ rduty -H 192.168.0.10,192.168.0.20,server.mydomain.local -C "uname -a" 
 
 .. code-block:: sh
 
-  $ rduty -H 192.168.0.10 -C "uname" 
+  $ rduty -I myinventory/servers.ini --script "/home/user/commands_list.txt" 
+
+.. code-block:: sh
+
+  $ rduty -I myinventory/servers.ini --script "/home/user/commands_list.txt" --dryrun
 
 
 **Options:**
@@ -59,18 +64,33 @@ Command line
 
 
    "``-H``, ``--script FILENAME``","Load jghjghjghj blah blhah"
-     
    "``-I``, ``--inventory FILENAME``","inventory file"
-
    "``-S``, ``--script FILENAME``","Load jghjghjghj blah blhah"
-     
    "``-C``, ``--command COMMAND``","command"
-
    "``-v``, ``--version``",output version information and exit.
    "``-h``, ``--help``",show this help and exit.
 
 .. [[[end]]]
 
+
+Command line
+~~~~~~~~~~~~
+
+**Usage:** `rduty [HOST or INVENTORY] [COMMAND or SCRIPT] ...`
+
+.. code-block:: sh
+
+$ ./rduty.py  -H 192.168.0.3 -C "uname" -p 22
+Username: gabriele
+Password: 
+1. [192.168.0.3:22]
+192.168.0.3 -> Connect
+192.168.0.3 -> Executing command: uname
+192.168.0.3 -> Getting output: 
+-----------------------------------------------------------------------------------------------------------------------
+Linux
+-----------------------------------------------------------------------------------------------------------------------
+.. [[[end]]]
 
 
 Contact
