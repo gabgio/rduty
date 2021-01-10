@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.2 (2020-01-09)
+* Port option added. 
+
 ## v0.3.1 (2020-01-08)
 * Added inventory (ini config, with Ansible (inventory syntax) file parsing.
 * Added support for reading and eceuting scripts.

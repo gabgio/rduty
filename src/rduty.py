@@ -1,37 +1,47 @@
 #!/usr/bin/python3
-try:
-    import argparse
-except:
-    raise Exception("Missing argparse!")
-try:
-    import getpass
-except:
-    raise Exception("Missing getpass!")
-try:
-    import configparser
-except:
-    raise Exception("Missing configparser!")
-try:
-    import paramiko
-except:
-    raise Exception("Missing paramiko!")
 
 import os
 import sys
 import time
-import ipaddress
 import socket
-
-PACKAGE="rduty"
-VERSION="0.3.1"
-RELEASE_DATE="20200108"
-AUTHOR="Gabriele Giorgetti"
-EMAIL="<g.giorgetti@gmail.com>"
-URL="https://github.com/gabgio/rduty"
 
 # exit values
 EXIT_SUCCESS=0
 EXIT_FAILURE=1
+
+try:
+    import argparse
+except:
+    print ("Error, missing 'argparse'")
+    sys.exit(EXIT_FAILURE)
+try:
+    import getpass
+except:
+    print ("Error, missing 'getpass'")
+    sys.exit(EXIT_FAILURE)
+try:
+    import configparser
+except:
+    print ("Error, missing 'configparser'")
+    sys.exit(EXIT_FAILURE)
+try:
+    import ipaddress
+except:
+    print ("Error, missing 'ipaddress', try: 'sudo pip install ipaddress'")
+    sys.exit(EXIT_FAILURE)
+try:
+    import paramiko
+except:
+    print ("Error, missing 'paramiko', try: 'sudo pip install paramiko'")
+    sys.exit(EXIT_FAILURE)
+
+PACKAGE="rduty"
+VERSION="0.3.2"
+RELEASE_DATE="20200109"
+AUTHOR="Gabriele Giorgetti"
+EMAIL="<g.giorgetti@gmail.com>"
+URL="https://github.com/gabgio/rduty"
+
 
 # max size for script #1MB
 SCRIPT_MAXSIZE=1048576 
@@ -209,12 +219,12 @@ class Hosts:
 
 class Connection:
     
-    def __init__ (self,protocol):
+    def __init__ (self,protocol, port):
 
         self.protocol=protocol
 
         self.hostname=""
-        self.port=22
+        self.port=port
         self.username=""
         self.password=""
         
@@ -236,7 +246,6 @@ class Connection:
             self.error="Error, no protocol given!"
             return None
 
-
     def Connect (self, hostname=None, port=None, username=None,password=None):
 
         self.hostname=hostname
@@ -247,18 +256,14 @@ class Connection:
         self.outoput=""
         self.error=""
         self.connected=False
+        if port != None:
+            self.port=int(port)
 
         if self.protocol is PROTOCOL_SSH:
-            if port == None:
-                self.port=PORT_SSH
-            
             if self.ConnectSSH(self.hostname,self.port, self.username, self.password):
                 return True
 
         elif self.protocol is PROTOCOL_TELNET:
-            if port == None:
-                self.port=PORT_TELNET
-
             if self.ConnectTELNET(self.hostname,self.port, self.username, self.password):
                 return True
 
@@ -268,7 +273,6 @@ class Connection:
     def ConnectSSH (self, hostname=None,port=None,username=None,password=None):
 
         self.hostname=hostname
-        self.port=port
         self.username=username
         self.password=password
 
@@ -276,6 +280,9 @@ class Connection:
         self.outoput=""
         self.error=""
         self.connected=False
+        
+        if port != None:
+            self.port=int(port)    
 
         _debugout ("ConnectSSH:" + self.hostname +" " +str(self.port)+" "+self.username)
         try:
@@ -301,9 +308,8 @@ class Connection:
         return True
 
 
-    def ConnectTELNET (self, hostname,port=21,username=None,password=None):
+    def ConnectTELNET (self, hostname,port=None,username=None,password=None):
         self.hostname=hostname
-        self.port=port
         self.username=username
         self.password=password
 
@@ -311,6 +317,9 @@ class Connection:
         self.outoput=""
         self.error=""
         self.connected=False
+
+        if port != None:
+            self.port=int(port)    
 
         _debugout ("ConnectTELNET:" + self.hostname +" " +str(self.port)+" "+self.username)
         try:
@@ -425,52 +434,106 @@ class Connection:
         except:
             pass
 
-
 def show_version():
     sys.stdout.write ("%s %s (%s) (%s)\n" %(PACKAGE,VERSION,RELEASE_DATE,URL))
     sys.stdout.write ("\n")
     sys.stdout.write ("Written by %s %s\n" %(AUTHOR,EMAIL))
+    sys.exit(EXIT_SUCCESS)
+
+def show_help():
+    sys.stdout.write ("%s version %s Usage: %s [HOST or INVENTORY] [COMMAND or SCRIPT]\n" %(PACKAGE,VERSION,PACKAGE))
+    sys.stdout.write ("\n")
+    sys.stdout.write ("Required arguments:\n")
+    sys.stdout.write ("      -C COMMAND,   --command \"COMMAND\"\n")
+    sys.stdout.write ("                      command to execute remotely between quotes\n")
+    sys.stdout.write ("Or:\n")     
+    sys.stdout.write ("      -S SCRIPT,    --sctipt SCRIPT\n")
+    sys.stdout.write ("                      script file with commands to execute.\n")
+    sys.stdout.write ("      -H HOST,      --hosts  HOSTS\n")
+    sys.stdout.write ("                      hostname, ip or comma separated list of hosts\n")
+    sys.stdout.write ("Or:\n")     
+    sys.stdout.write ("      -I SCRIPT,    --script SCRIPT\n")
+    sys.stdout.write ("                      inventory file with hosts list (supports Ansible inventory).\n")
+    sys.stdout.write ("\n")
+    sys.stdout.write ("Optional arguments:\n")
+    sys.stdout.write ("      -U USERNAME,  --username USERNAME\n")
+    sys.stdout.write ("                      username for the connection\n")
+    sys.stdout.write ("      -P PASSWORD,  --password PASSWORD\n")
+    sys.stdout.write ("                      password for the connection\n")
+    sys.stdout.write ("      -p PORT,      --port PORT\n")
+    sys.stdout.write ("                      port used for the connection, default 22\n")
+    sys.stdout.write ("                    --protocol {ssh,telnet}\n")
+    sys.stdout.write ("                      protocol to use valid values are ssh (default) or telnet\n")
+    sys.stdout.write ("      -d,           --dryrun\n")
+    sys.stdout.write ("                      only shows what will be done, doesn't execute commands\n")
+    sys.stdout.write ("      -q,           --quiet\n")
+    sys.stdout.write ("                      shows only essential output\n")
+    sys.stdout.write ("      -v,           --version\n")
+    sys.stdout.write ("                      output version information and exit\n")
+    sys.stdout.write ("\n")
+    sys.stdout.write ("Example: %s --hosts 192.168.0.10 --command \"uname\"\n" %(PACKAGE))
+    sys.stdout.write ("Example: %s --inventory /home/users/inventory.ini --comand \"hostname\"\n" %(PACKAGE))
+    sys.stdout.write ("Example: %s --hosts 102.168.0.10,192.168.0.20 --command \"uname && hostname\" --dryrun\n" %(PACKAGE))
+    sys.stdout.write ("\n")    
+    sys.stdout.write ("Report bugs on %s.\n" %(URL))
+    sys.exit(EXIT_SUCCESS)
     
 
 def main():
     """ """
     global MODE_DRYRUN, MODE_QUIET, MODE_DEBUG
 
-    argparser = argparse.ArgumentParser(prog=PACKAGE, add_help=True, usage='%(prog)s [options] BLAHBLHA OVerride thedefault')
+    #argparser = argparse.ArgumentParser(prog=PACKAGE, add_help=False, usage='%(prog)s [options] BLAHBLHA OVerride thedefault')
+    argparser = argparse.ArgumentParser(prog=PACKAGE, add_help=False)
 
     # this command are mutually exclusive for command or script file, and at least one must be specified
-    exclusive_actions_group = argparser.add_mutually_exclusive_group(required=True)
+    exclusive_actions_group = argparser.add_mutually_exclusive_group(required=False)
     exclusive_actions_group.add_argument("-C","--command", help="command to execute remotely should quoted")
     exclusive_actions_group.add_argument("-S","--script", help="path to the script to execute")
 
     # this command are mutually exclusive for host list or inventory file, and at least one must be specified
-    exclusive_inventory_group = argparser.add_mutually_exclusive_group(required=True)
+    exclusive_inventory_group = argparser.add_mutually_exclusive_group(required=False)
     exclusive_inventory_group.add_argument("-H","--hosts", help="host or comma separated list of hosts")
     exclusive_inventory_group.add_argument("-I","--inventory", help="path to inventory file")
 
     # list of optional commands
     argparser.add_argument("-U","--username", help="username")
     argparser.add_argument("-P","--password", help="password")
-    argparser.add_argument("-p","--protocol", choices=['ssh', 'telnet'], default=PROTOCOL_SSH, help="protocol to use valid values are ssh (default)or telnet")
-    # if specified quiet is set to true
-    argparser.add_argument("-q","--quiet", help="shows only essential output", action="store_true")
+    argparser.add_argument("-p","--port", help="port")
+    argparser.add_argument("-t","--protocol", choices=['ssh', 'telnet'], default=PROTOCOL_SSH, help="protocol to use valid values are ssh (default)or telnet")
     # if specified dryrun is set to true
     argparser.add_argument("-d","--dryrun", help="only shows what will be done", action="store_true")
+    # if specified quiet is set to true
+    argparser.add_argument("-q","--quiet", help="shows only essential output", action="store_true")
     # if specified debug is set to true
     argparser.add_argument("-D","--debug", action="store_true", help=argparse.SUPPRESS) # not shown in normal help
 
-    argparser.add_argument("-v","--version", action='version',  help="output version information and exit", version=str('%(prog)s ' + VERSION + " ("+RELEASE_DATE+")"))
-    #argparser.add_argument("-h","--help", help="display this help and exit")
+    argparser.add_argument("-v","--version", help="output version information and exit", action='version',  version=str('%(prog)s ' + VERSION + " ("+RELEASE_DATE+")"))
+    argparser.add_argument("-h","--help", help="display this help and exit", action='store_true')
 
     # parse args
     args=argparser.parse_args()
 
-    try:
-        import signal
-        # traps the sigint signal
-        signal.signal(signal.SIGINT, signal_handler)
-    except:
-        pass
+    # no argument given    
+    if len(sys.argv)==1:
+        sys.stderr.write(PACKAGE+": No arguments given.\n")
+        sys.stderr.write("Try `"+PACKAGE+" --help' for more information.\n")
+        sys.exit (EXIT_FAILURE)
+
+    # no argument given    
+    if (not args.command) and (not args.script):
+        sys.stderr.write(PACKAGE+": No required option -C, --command or -S, --script given.\n")
+        sys.stderr.write("Try `"+PACKAGE+" --help' for more information.\n")
+        sys.exit (EXIT_FAILURE)
+
+    # no argument given    
+    if (not args.hosts) and (not args.inventory):
+        sys.stderr.write(PACKAGE+": No required option -H, --hosts or -I, --inventory given.\n")
+        sys.stderr.write("Try `"+PACKAGE+" --help' for more information.\n")
+        sys.exit (EXIT_FAILURE)        
+        
+    if args.help:
+        show_help()
 
     if args.dryrun:
         MODE_DRYRUN=True
@@ -480,6 +543,13 @@ def main():
 
     if args.debug:
         MODE_DEBUG=True
+
+    try:
+        import signal
+        # traps the sigint signal
+        signal.signal(signal.SIGINT, signal_handler)
+    except:
+        pass
 
     # set username and password
     user=User()
@@ -494,7 +564,14 @@ def main():
         hosts=Hosts()
         hosts.AddFromInventoryAnsible(path=args.inventory)
 
-    connection=Connection(args.protocol)
+    port=PORT_SSH
+    if args.port:
+        try:
+            port=int(args.port)
+        except:
+            _exiterror ("Error, port number should be an interger!\nAborting.\n")
+
+    connection=Connection(args.protocol,int(port))
 
     counter=1
     if args.command != None:
@@ -506,8 +583,7 @@ def main():
             else:
                 _txtout(str(counter)+ ". ["+str(host)+":"+str(connection.port)+"]")
                 _appout (host,"Connect",MODE_DRYRUN, MODE_QUIET)
-
-            connection.Connect(hostname=host, username=user.username,password=user.password)
+            connection.Connect(hostname=host, port=port, username=user.username,password=user.password)
             if not connection.connected:
                 if MODE_DEBUG:
                     _debugout ("Can't connect. " + str(connection.error))
@@ -544,7 +620,7 @@ def main():
                 _txtout(str(counter)+ ". ["+str(host)+":"+str(connection.port)+"]")
                 _appout (host,"Connect",MODE_DRYRUN, MODE_QUIET)
 
-            connection.Connect(hostname=host, username=user.username,password=user.password)
+            connection.Connect(hostname=host, port=port, username=user.username,password=user.password)
             if not connection.connected:
                 if MODE_DEBUG:
                     _debugout ("Can't connect. " + str(connection.error))
