@@ -21,7 +21,7 @@ some  dependencies which you might have to install as well:
 
 .. code-block:: console
 
-  $ sudo pip install paramiko
+   $ sudo pip install paramiko
   
 .. code-block:: console
 
@@ -51,15 +51,15 @@ Some usage examples:
   
 .. code-block:: sh
 
-  $ rduty -H 192.168.0.10,192.168.0.20,server.mydomain.local -C "uname -a" 
+   $ rduty -H 192.168.0.10,192.168.0.20,server.mydomain.local -C "uname -a" 
 
 .. code-block:: sh
 
-  $ rduty -I myinventory/servers.ini --script "/home/user/commands_list.txt" 
+   $ rduty -I myinventory/servers.ini --script "/home/user/commands_list.txt" 
 
 .. code-block:: sh
 
-  $ rduty -I myinventory/servers.ini --script "/home/user/commands_list.txt" --dryrun
+   $ rduty -I myinventory/servers.ini --script "/home/user/commands_list.txt" --dryrun
 
 
 **Options:**
@@ -89,6 +89,7 @@ Script file and Inventory file format
 A script is a file with a list of command to execute on the remote host, each one on a new line:
 
 .. code-block:: sh
+
    uname -a
    df
    hostname
@@ -96,6 +97,7 @@ A script is a file with a list of command to execute on the remote host, each on
 A Inventory file is a .ini file with a list of hosts with the folling format:
 
 .. code-block:: ini
+
    [servers]
    server1.localdomain.local
    server2.localdomain.local
