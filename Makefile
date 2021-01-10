@@ -10,13 +10,12 @@ BINDIR=$(PREFIX)/bin
 
 DIST=\
 	AUTHORS			\
-	COPYING			\
-	ChangeLog		\
+	LICENSE			\
+	CHANGELOG.rst	\
 	Makefile		\
-	README			\
-	INSTALL			\
-	src/rduty.py	\
-	doc/rduty.1
+	README.rst		\
+	INSTALL.rst		\
+	src/rduty.py
 
 src/$(PACKAGE): src/$(PACKAGE).py
 	@cp src/$(PACKAGE).py src/$(PACKAGE)
