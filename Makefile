@@ -1,7 +1,7 @@
 #!/usr/bin/make -s
 
 PACKAGE=rduty
-VERSION=0.3.2
+VERSION=0.4.1
 
 # install architecture-independent files
 PREFIX=/usr/local

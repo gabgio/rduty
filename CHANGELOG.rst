@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.1 (2020-01-20)
+* connection timeout added, default 5 secs.
+
 ## v0.3.2 (2020-01-09)
 * Port option added. 
 

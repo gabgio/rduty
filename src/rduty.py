@@ -36,8 +36,8 @@ except:
     sys.exit(EXIT_FAILURE)
 
 PACKAGE="rduty"
-VERSION="0.3.2"
-RELEASE_DATE="20200109"
+VERSION="0.4.1"
+RELEASE_DATE="20200120"
 AUTHOR="Gabriele Giorgetti"
 EMAIL="<g.giorgetti@gmail.com>"
 URL="https://github.com/gabgio/rduty"
