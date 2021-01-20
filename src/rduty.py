@@ -54,6 +54,9 @@ MODE_DEBUG=False
 PROTOCOL_SSH="ssh"
 PROTOCOL_TELNET="telnet"
 
+# default ssh connection timeout 5 seconds
+CONNECTION_TIMEOUT=5
+
 # defaults
 PORT_SSH=22
 PORT_TELNET=21
@@ -286,7 +289,7 @@ class Connection:
 
         _debugout ("ConnectSSH:" + self.hostname +" " +str(self.port)+" "+self.username)
         try:
-            self.connection.connect(self.hostname, self.port,self.username,self.password)
+            self.connection.connect(self.hostname, self.port,self.username,self.password, timeout=CONNECTION_TIMEOUT )
         except socket.gaierror:
             self.error="Error (Connect), cannot resolve '" + self.hostname + "' !"
             return False
